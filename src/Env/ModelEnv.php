@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 use Symfony\Component\Console\Input\InputOption;
 
-use App\Parsers\BaseMode;
+use Runnable\BaseEnvironment;
 
 class ModelEnv extends BaseEnvironment {
 

@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Console\Commands;
+namespace Runnable;
 
 use Illuminate\Console\Command;
 
-use App\Parsers\BaseEnvironment;
-use App\Exceptions\ModeNotFoundException;
+use Runnable\BaseEnvironment;
+use Runnable\ModeNotFoundException;
 
 use Symfony\Component\Console\Exception\CommandNotFoundException;
 use Symfony\Component\Console\Exception\RuntimeException;

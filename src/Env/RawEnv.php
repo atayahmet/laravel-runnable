@@ -2,7 +2,7 @@
 
 namespace Runnable\Env;
 
-use App\Parsers\BaseEnvironment;
+use Runnable\BaseEnvironment;
 
 class RawEnv extends BaseEnvironment {
 

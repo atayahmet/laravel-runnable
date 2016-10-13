@@ -2,7 +2,7 @@
 
 namespace Runnable\Env;
 
-use App\Parsers\BaseEnvironment;
+use Runnable\BaseEnvironment;
 use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Debug\Exception\FatalErrorException;
