@@ -82,4 +82,11 @@ class BaseEnvironment extends Command {
             $this->output->writeln('<'.$method.'>'.current($args).'</'.$method.'>');
         }
     }
+
+    public function __get($name)
+    {
+        if(in_array($name, ['name', 'description', 'lineText'])) {
+            return $this->{$name};
+        }
+    }
 }

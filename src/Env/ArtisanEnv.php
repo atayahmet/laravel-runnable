@@ -13,9 +13,10 @@ use stdClass;
 
 class ArtisanEnv extends BaseEnvironment {
 
-    protected $name = 'artisan';
-    protected $description = 'Run raw sql';
-    protected $lineText = 'dxx';
+    public $name = 'artisan';
+    public $description = 'Run raw sql';
+    public $lineText = 'dxx';
+    
     protected $model;
     protected $table;
     protected $listTable = true;

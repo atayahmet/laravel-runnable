@@ -15,7 +15,7 @@ class LiveEnv extends BaseEnvironment {
 
     protected $name = 'live';
     protected $description = 'Run raw sql';
-    protected $lineText = 'dxx';
+    protected $lineText = '';
     protected $model;
     protected $table;
     protected $listTable = true;
@@ -57,10 +57,5 @@ class LiveEnv extends BaseEnvironment {
             $this->io->error($e->getMessage());
         }
 
-    }
-
-    public function __get($e)
-    {
-        dd($e);
     }
 }

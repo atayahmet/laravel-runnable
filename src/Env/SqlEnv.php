@@ -7,24 +7,25 @@ use Runnable\BaseEnvironment;
 use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\Console\Input\ArrayInput;
 use Illuminate\Database\QueryException;
+use PDOException;
 use DB;
 use stdClass;
 
 class SqlEnv extends BaseEnvironment {
 
     protected $name = 'sql';
-
     protected $description = 'Run raw sql';
-
     protected $lineText = '';
-
+    protected $connection = null;
     protected $model;
-
     protected $table;
-
     protected $listTable = true;
-
     protected $time = 0;
+
+    protected $casts = [
+        'x' => 'boolean',
+        'c' => 'string'
+    ];
 
     protected $io;
 
@@ -53,7 +54,11 @@ class SqlEnv extends BaseEnvironment {
                 return;
             }
 
-            $result = DB::select(DB::raw("{$command}"));
+            if($this->connection) {
+                $result = DB::connection($this->connection)->select(DB::raw("{$command}"));
+            }else{
+                $result = DB::select(DB::raw("{$command}"));
+            }
 
             $this->io->newLine(2);
 
@@ -75,7 +80,10 @@ class SqlEnv extends BaseEnvironment {
 
         }catch(QueryException $e) {
             $this->io->error($e->getMessage());
+        }catch(PDOException $e) {
+            $this->io->error($e->getMessage());
         }
+
 
     }
 
@@ -105,19 +113,57 @@ class SqlEnv extends BaseEnvironment {
         return $newData;
     }
 
-    protected function mode()
+    protected function mode($command)
     {
-        $this->listTable = !$this->listTable;
+        preg_match_all('/\s+(?:([a-z]+))/', $command, $params);
 
-        $result = [
-            "x" => [
-                false => '> Object view mode was activated',
-                true  => '> Table view mode was activated'
-            ]
-        ];
+        $params = array_map('trim', $params[0]);
 
-        $this->io->newLine(1);
-        $this->green($result['x'][$this->listTable]);
+        preg_match('/^\\\\([a-zA-Z]+)/', $command, $command);
+
+        if(count($command) > 1) $command = $command[1];
+
+        $store = collect([
+            'x' => function() {
+                $this->listTable = !$this->listTable;
+                $this->io->newLine(1);
+
+                if($this->listTable) {
+                    $this->green('> Table view mode was activated');
+                }else{
+                    $this->green('> Object view mode was activated');
+                }
+            },
+            'c' => function() {
+                $args = func_get_args();
+
+                $connection = count($args) < 1 ? null : current(func_get_args());
+
+                if(in_array($connection, DB::availableDrivers())) {
+
+                    $this->connection = $connection;
+                    $this->lineText = $connection;
+
+                    $this->io->newLine(1);
+                    $this->io->text('<white>> Database connection driver has been changed to</white> <green>'.$connection.'</green>');
+                }else{
+                    if(empty($connection)) {
+                        $this->connection = null;
+                        $this->lineText = '';
+                    }else{
+                        $this->io->newLine(1);
+                        $this->io->error('Connection not found');
+                    }
+                }
+            }
+        ]);
+
+        if(! $store->has($command)) {
+            $this->io->error('Command not found');
+            return;
+        }
+
+        call_user_func_array($store->get($command), $params);
     }
 
     protected function inputOption()

@@ -32,7 +32,6 @@ class RunnableServiceProvider extends ServiceProvider
     protected function saveDefaultModes()
     {
         $runnableModes = app()->make('RunnableModes');
-
         if(! property_exists($runnableModes, 'runnable')) {
             $runnableModes->runnable = [];
         }
@@ -45,11 +44,11 @@ class RunnableServiceProvider extends ServiceProvider
     protected function defaultModes()
     {
         return [
-            \App\Parsers\ArtisanEnv::class,
-            \App\Parsers\LiveEnv::class,
-            \App\Parsers\ModelEnv::class,
-            \App\Parsers\SqlEnv::class,
-            \App\Parsers\RawEnv::class
+            \Runnable\Env\ArtisanEnv::class,
+            \Runnable\Env\LiveEnv::class,
+            \Runnable\Env\ModelEnv::class,
+            \Runnable\Env\SqlEnv::class,
+            \Runnable\Env\RawEnv::class
         ];
     }
 }
