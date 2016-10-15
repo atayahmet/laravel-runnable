@@ -19,7 +19,7 @@ class Runnable extends Command
      *
      * @var string
      */
-    protected $signature = 'runnable {mode?}';
+    protected $signature = 'runnable {env?}';
     private static $stty;
 
     /**
@@ -328,14 +328,14 @@ class Runnable extends Command
 
     private function setInputs()
     {
-        // Get the mode
-        $mode = $this->argument('mode');
-        // Get the first mode.
+        // Get the env
+        $env = $this->argument('env');
+        // Get the first env.
         // if boot mode of init moment is fail pass the default mode
-        $firstMode = current(array_keys($this->environments));
+        $firstEnv = current(array_keys($this->environments));
 
         // Save default mode if mode params exists
-        $this->bootEnvIfExists($mode, true, $defaultMode = $firstMode);
+        $this->bootEnvIfExists($env, true, $defaultEnv = $firstEnv);
     }
 
     protected function bootEnvIfExists($env = null, $exception = false, $defaultEnv = null)
@@ -360,7 +360,7 @@ class Runnable extends Command
             // if mode parameter is valid go to error steps
             if($env) {
 
-                $message = $env . ' environtment was not found';
+                $message = $env . ' environment was not found';
 
                 if($exception) {
                     throw new EnvNotFoundException($message);
@@ -371,7 +371,7 @@ class Runnable extends Command
 
             // if mode parameter is not valid and
             // passed default mode go to set default mode step
-            elseif($defaultMode) {
+            elseif($defaultEnv) {
                 $this->bootEnvIfExists($defaultEnv);
             }
         }
