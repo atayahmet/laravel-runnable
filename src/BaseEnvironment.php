@@ -10,6 +10,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Console\Helper\TableSeparator;
 use Symfony\Component\Console\Helper\Table;
+use Closure;
 
 class BaseEnvironment extends Command {
 
@@ -34,8 +35,9 @@ class BaseEnvironment extends Command {
         $this->output = $output;
         $this->input = $input;
         $this->symfonyStyle = new SymfonyStyle($input, $output);
+        $this->modes = collect([]);
 
-        $this->generateFormat();
+        $this->initConfig();
     }
 
     public function consoleOutput()
@@ -67,6 +69,12 @@ class BaseEnvironment extends Command {
         return new Table($output);
     }
 
+    public function initConfig()
+    {
+        $this->generateFormat();
+        $this->register();
+    }
+
     protected function generateFormat()
     {
         foreach($this->fg as $color) {
@@ -74,6 +82,32 @@ class BaseEnvironment extends Command {
             $style = new OutputFormatterStyle($color, 'default', array('bold'));
             $this->output->getFormatter()->setStyle($color, $style);
         }
+    }
+
+    protected function addMode($name = null, Closure $action)
+    {
+        $this->modes->put($name, $action);
+    }
+
+    protected function getMode($mode)
+    {
+        return $this->modes->get($mode, null);
+    }
+
+    public function runMode($command)
+    {
+        preg_match_all('/\s+(?:([a-z0-9]+))/', $command, $params);
+        $params = array_map('trim', $params[0]);
+
+        preg_match('/^(\\\\[a-zA-Z]+)/', $command, $command);
+        $command = count($command) > 1 ? $command[1] : '';
+
+        if(! $this->modes->has($command)) {
+            return false;
+        }
+
+        call_user_func_array($this->getMode($command), $params);
+        return true;
     }
 
     public function __call($method, $args)

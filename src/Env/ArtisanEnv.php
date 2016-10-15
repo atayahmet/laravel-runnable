@@ -15,8 +15,8 @@ class ArtisanEnv extends BaseEnvironment {
 
     public $name = 'artisan';
     public $description = 'Run raw sql';
-    public $lineText = 'dxx';
-    
+    public $lineText = '';
+
     protected $model;
     protected $table;
     protected $listTable = true;

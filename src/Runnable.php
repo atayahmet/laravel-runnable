@@ -4,14 +4,12 @@ namespace Runnable;
 
 use Illuminate\Console\Command;
 use Runnable\BaseEnvironment;
-use Runnable\ModeNotFoundException;
+use Runnable\EnvNotFoundException;
 use Symfony\Component\Console\Exception\CommandNotFoundException;
 use Symfony\Component\Console\Exception\RuntimeException;
 use Symfony\Component\Console\Formatter\OutputFormatterStyle;
 use Symfony\Component\Console\Input\ArrayInput;
-use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Input\InputDefinition;
+
 use ReflectionClass;
 
 class Runnable extends Command
@@ -31,22 +29,13 @@ class Runnable extends Command
      */
     protected $description = 'Pretty runnable environment';
 
-    protected $allModes = [];
-    protected $namespace = null;
-    protected $environments = [
-        /*'model',
-        'eval',
-        'raw',
-        'artisan'*/
-    ];
+    protected $environments = [];
 
-    protected $baseKernel;
-    protected $views = ['table', 'json', 'array'];
     protected $history = [];
 
     protected $commands = [
         'current' => [
-            //'mode'      => 'model'
+
         ]
     ];
 
@@ -64,78 +53,6 @@ class Runnable extends Command
 
         $this->bootModes();
         $this->history = collect([]);
-    }
-
-    protected function bootModes()
-    {
-        foreach(app()->make('RunnableModes')->runnable as $env) {
-
-            // make the mode class
-            $envIns = app($env);
-
-            // Uses the reflection class to  be accessable
-            // the protected properties.
-            $refEnv = new ReflectionClass($env);
-
-            // only name  properties get from mode class
-            // because it's properties will using the showcase info
-            foreach(['name'] as $prop) {
-
-                // enabled the free usage mode current class
-                $refProp = $refEnv->getProperty($prop);
-                $refProp->setAccessible(true);
-
-                if($prop == 'name') {
-                    $envName = $refProp->getValue($envIns);
-
-                    $this->saveEnvClass($envName, $envIns);
-                    $this->saveEnvProps($envName.'.refClass', $envIns);
-                }
-            }
-
-        }
-    }
-
-    /**
-     * Only save the mode class to modes container
-     *
-     * @param  string $mode      mode name
-     * @param  object $modeClass Class instance of extended to the BaseEnvironment Class
-     * @return void
-     */
-    protected function saveEnvClass($env = null, BaseEnvironment $envClass = null)
-    {
-        if(!$env || !$envClass) return;
-
-        $this->saveEnvProps($env.'.class', $envClass);
-    }
-
-    /**
-     * Save the modes container properties from given child mode classes
-     *
-     * @param  string $path  modes array nested path
-     * @param  mixed $value
-     * @return void
-     */
-    protected function saveEnvProps($path = null, $value = null)
-    {
-        if($path && $value) {
-            array_set($this->environments, $path, $value);
-        }
-    }
-
-    protected function getEnv($name)
-    {
-        return array_get($this->environments, $name ?: $this->getCurrentEnvName());
-    }
-
-    private function hasSttyAvailable()
-    {
-        if (null !== self::$stty) {
-            return self::$stty;
-        }
-        exec('stty 2>&1', $output, $exitcode);
-        return self::$stty = $exitcode === 0;
     }
 
     /**
@@ -157,35 +74,27 @@ class Runnable extends Command
         try {
             $inputStream = STDIN;
 
-            if (!$this->hasSttyAvailable()) {
+            if (! $this->hasSttyAvailable()) {
 
-                $this->line('evet');
+                $this->_newLine(false);
+                $this->error('Console stty command not available');
             }else {
                 $command = '';
                 $commandLength = 0;
                 $i = 0;
 
                 $this->setInputs();
-
                 $this->getOutput()->write("\033[K");
 
                 // Disable icanon (so we can fread each keypress) and echo (we'll do echoing here instead)
                 shell_exec('stty -icanon -echo');
 
-               //shell_exec("history | grep 'php artisan'");
+                $this->_stdOut("\n".$this->cursor());
 
-               //fputs(STDOUT, "\n".$this->cursor());
+                $j = 0;
+                $leftPos = 0;
+                $rightPos = 0;
 
-               $this->_stdOut("\n".$this->cursor());
-
-               $j = 0;
-               $leftPos = 0;
-               $rightPos = 0;
-
-               //$this->_newLine(false);
-               //$this->_newLine(false);
-               //$this->call('route:list');
-               //$this->_newLine();
                 while (!feof($inputStream)) {
 
                     $rawInput = fread($inputStream, 1);
@@ -293,7 +202,8 @@ class Runnable extends Command
                             $command = '';
                         }
                         elseif($c === "\t") {
-                           $this->_newLine();
+                            $this->parse($command, $c);
+                            $this->_newLine();
                         }
                     }else{
                         if((empty($command) && $rawInput !== "\177") || !empty($command)) {
@@ -328,44 +238,92 @@ class Runnable extends Command
                         }
                    }
 
-                  // $this->getOutput()->write(str_replace('➜', '',$c[0]));
                     if($commandLength > 0) {
                         $this->getOutput()->write("\033[K");
                     }
                 }
-
             }
-
-            // $this->callSilent('runnable');
-
-            //$this->setInputs();
-
-            // Disable icanon (so we can fread each keypress) and echo (we'll do echoing here instead)
-            //shell_exec('stty -icanon -echo');
-
-            /*while (1) {
-
-                fputs(STDOUT, $this->cursor());
-
-                //$key = fread(STDIN, 1);
-                $response = strtolower(trim(fgets(STDIN)));
-
-
-                if($response) {
-
-                    if($this->parse($response)) {
-                        continue;
-                    }
-
-                }
-            }*/
 
             // Reset stty so it behaves normally again
            shell_exec(sprintf('stty %s', $sttyMode));
+
         }catch(CommandNotFoundException $e) {
             $this->_newLine(false);
-            //$this->error($e->getMessage());
+            $this->error($e->getMessage());
         }
+    }
+
+    protected function bootModes()
+    {
+        foreach(app()->make('RunnableModes')->runnable as $env) {
+
+            // make the mode class
+            $envIns = app($env);
+
+            $envIns->register();
+
+            // Uses the reflection class to  be accessable
+            // the protected properties.
+            $refEnv = new ReflectionClass($env);
+
+            // only name  properties get from mode class
+            // because it's properties will using the showcase info
+            foreach(['name'] as $prop) {
+
+                // enabled the free usage mode current class
+                $refProp = $refEnv->getProperty($prop);
+                $refProp->setAccessible(true);
+
+                if($prop == 'name') {
+                    $envName = $refProp->getValue($envIns);
+
+                    $this->saveEnvClass($envName, $envIns);
+                    $this->saveEnvProps($envName.'.refClass', $envIns);
+                }
+            }
+        }
+    }
+
+    /**
+     * Only save the mode class to modes container
+     *
+     * @param  string $mode      mode name
+     * @param  object $modeClass Class instance of extended to the BaseEnvironment Class
+     * @return void
+     */
+    protected function saveEnvClass($env = null, BaseEnvironment $envClass = null)
+    {
+        if(!$env || !$envClass) return;
+
+        $this->saveEnvProps($env.'.class', $envClass);
+    }
+
+    /**
+     * Save the modes container properties from given child mode classes
+     *
+     * @param  string $path  modes array nested path
+     * @param  mixed $value
+     * @return void
+     */
+    protected function saveEnvProps($path = null, $value = null)
+    {
+        if($path && $value) {
+            array_set($this->environments, $path, $value);
+        }
+    }
+
+    protected function getEnv($name = null)
+    {
+        return array_get($this->environments, $name ?: $this->getCurrentEnvName());
+    }
+
+    private function hasSttyAvailable()
+    {
+        if (null !== self::$stty) {
+            return self::$stty;
+        }
+        exec('stty 2>&1', $output, $exitcode);
+        return self::$stty = $exitcode === 0;
     }
 
     private function setInputs()
@@ -377,20 +335,20 @@ class Runnable extends Command
         $firstMode = current(array_keys($this->environments));
 
         // Save default mode if mode params exists
-        $this->bootModeIfExists($mode, true, $defaultMode = $firstMode);
+        $this->bootEnvIfExists($mode, true, $defaultMode = $firstMode);
     }
 
-    protected function bootModeIfExists($mode = null, $exception = false, $defaultMode = null)
+    protected function bootEnvIfExists($env = null, $exception = false, $defaultEnv = null)
     {
         // if $exception parameter is true throw the exception error
         // if mode booting is not success
         $booted = false;
 
         // Check the mode name and exists
-        if($mode && array_has($this->environments, $mode)) {
+        if($env && array_has($this->environments, $env)) {
 
-            // change the new mode
-            $this->setMode($mode);
+            // change the env
+            $this->setEnv($env);
 
             // success boot mode process
             $booted = true;
@@ -400,12 +358,12 @@ class Runnable extends Command
         if(! $booted) {
 
             // if mode parameter is valid go to error steps
-            if($mode) {
+            if($env) {
 
-                $message = $mode . ' mode was not found';
+                $message = $env . ' environtment was not found';
 
                 if($exception) {
-                    throw new ModeNotFoundException($message);
+                    throw new EnvNotFoundException($message);
                 }
 
                 $this->_error($message);
@@ -414,18 +372,15 @@ class Runnable extends Command
             // if mode parameter is not valid and
             // passed default mode go to set default mode step
             elseif($defaultMode) {
-                $this->bootModeIfExists($defaultMode);
+                $this->bootEnvIfExists($defaultEnv);
             }
         }
-
     }
 
     private function _stdOut($text)
     {
         $text = '<fg=red;options=bold>'.$text;
         $this->getOutput()->write($text);
-
-        // <fg=white>'.$text.'</>'
     }
 
     private function _error($text = null)
@@ -453,8 +408,6 @@ class Runnable extends Command
 
         $this->getOutput()->newLine(2);
         $this->getOutput()->writeln($text);
-        //$this->getOutput()->newLine(1);
-        //$this->getOutput()->write($this->cursor());
     }
 
     private function _newLine($cursor = true)
@@ -488,7 +441,7 @@ class Runnable extends Command
         $this->getOutput()->write("\033[1D");
     }
 
-    private function parse($command = null)
+    private function parse($command = null, $tab = false)
     {
         if($command) {
             if(preg_match('/^cm\s+(.*?)$/', $command)) {
@@ -497,30 +450,29 @@ class Runnable extends Command
                 if(count($matches) > 1) {
                     list($command, $value) = $matches;
 
-                    $this->bootModeIfExists($value);
+                    $this->bootEnvIfExists($value);
                 }
             }else{
 
                 try {
-                  $definition = new InputDefinition(array(
-                      new InputArgument('command', InputArgument::REQUIRED, 'test'),
-                      new InputArgument('value', InputArgument::REQUIRED),
-                      new InputOption('foo', 'f', InputOption::VALUE_REQUIRED),
-                  ));
+                    $class = $this->getEnv()['class'];
+                    // if enter key press run the command
+                    if(! $tab) {
+                        $isMode = call_user_func_array([$class, 'runMode'], [$command]);
+                        if(! $isMode) {
+                            call_user_func_array([$class, 'handle'], [$command]);
+                        }
+                    }
 
-                  $input = new ArrayInput(array('command' => 'set', 'value' => 'app.models.permission.role', '-f' => 'foobar'), $definition);
-
-
-                  //['test', InputArgument::REQUIRED, 'HelloWorld', null]
-
-                  // dump($input);
-                  //dump($this->getMode()['class']);
-                  call_user_func_array([$this->getMode()['class'], 'handle'], [$command]);
+                    // run the tab method in custom env class
+                    // if tab method exists
+                    elseif(method_exists($class, 'tab')){
+                        call_user_func_array([$class, 'tab'], [$command]);
+                    }
                 }
                 catch(RuntimeException $e) {
-                    //dump($e->getMessage());
+                    $this->error($e->getMessage());
                 }
-
             }
 
             return true;
@@ -531,69 +483,11 @@ class Runnable extends Command
 
     private function cursor()
     {
-        $model = $this->getModel();
         $envName = $this->getCurrentEnvName();
-
         $env = $this->getEnv($envName);
         $line = $env['class']->lineText;
-        
-        return "</><fg=white>(".$env['class']->name.") " . ($line ? $line.' ' : ''). "➜ </>";
-    }
 
-    private function getModel($exception = false)
-    {
-        $model = array_get($this->commands, $this->current('model'));
-
-        try {
-            if(! $model && $exception) {
-                throw new ModelNotFoundException("Model not found", 404);
-            }
-
-            return $model;
-        }
-        catch(ModelNotFoundException $e) {
-            $this->error('Model not found! Please set a model.');
-        }
-    }
-
-    private function setModel($model)
-    {
-        $model = $this->setNamespace($model);
-
-        if(! class_exists('\\'.$model)) {
-
-            throw new ModelNotFoundException('Error: '.$model. ' model not found!');
-        }else{
-            $modelInstance = new \ReflectionClass($model);
-            $isModelSubClass = is_subclass_of($modelInstance->newInstanceWithoutConstructor(), Model::class);
-
-            if(! $isModelSubClass) {
-
-                throw new ModelNotFoundException('Error: '.$model. ' model not found!');
-            }
-
-            array_set($this->commands, $this->current('model'), $model);
-        }
-    }
-
-    private function changeModelOrMode($value)
-    {
-        try {
-            $this->setModel($value);
-
-        }catch(ModelNotFoundException $e) {
-
-            if(in_array($value, $this->environments)) {
-                $this->setMode($value);
-            }else{
-                $this->_error('Error: model or mode not found');
-            }
-        }
-    }
-
-    protected function getMode()
-    {
-        return array_get($this->environments, $this->getCurrentEnvName());
+        return "</><fg=white>(".$env['class']->name.") " . ($line ? '<fg=red;options=bold>'.$line.' ' : ''). "<fg=white>➜ </><fg=white>";
     }
 
     protected function getCurrentEnvName()
@@ -601,34 +495,9 @@ class Runnable extends Command
         return array_get($this->commands, $this->current('mode'));
     }
 
-    private function setMode($mode)
+    private function setEnv($mode)
     {
         array_set($this->commands, $this->current('mode'), $mode);
-    }
-
-    private function setNamespace($path, $fromCamel = false)
-    {
-        $path = $this->replacePath($path);
-
-        if(! $fromCamel) {
-            return implode(array_map('ucfirst', preg_split('/'.'\\\\'.'/', $path)), '\\');
-        }
-        return implode(array_map('ucfirst', preg_split('/_/', snake_case($path))), '\\');
-    }
-
-    private function existsModel($model)
-    {
-        return class_exists('\\'.$model);
-    }
-
-    private function hasCommand($command)
-    {
-        return array_has($this->commands, str_replace(':', '.', $command));
-    }
-
-    private function setCommand($command, $value = null)
-    {
-        array_set($this->commands, str_replace(':', '.', $command), $value);
     }
 
     private function replaceCommand($command)
@@ -641,32 +510,6 @@ class Runnable extends Command
 
         // Return to the beginning of the line
         $this->_stdOut($erased.$cursor.$command);
-    }
-
-    private function verifyAction($command, $value, $exit = false)
-    {
-        if($command == 'set:model') {
-            $value = $this->setNamespace($value);
-
-            if(! $this->existsModel($value)) {
-                $this->_newLine(false);
-                $this->error('Error: '.$value. ' model not found!');
-                if($exit)
-                    exit;
-                else
-                    return false;
-            }
-        }
-        elseif($command == 'set:mode' && !in_array($value, $this->environments)) {
-            $this->_newLine(false);
-            $this->error('Error: '.$value. ' mode not found!');
-            if($exit)
-                exit;
-            else
-                return false;
-        }
-
-        return $value;
     }
 
     private function current($key)

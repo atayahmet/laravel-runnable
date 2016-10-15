@@ -5,6 +5,9 @@ namespace Runnable\Env;
 use Runnable\BaseEnvironment;
 
 use Symfony\Component\Console\Output\ConsoleOutput;
+use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Input\InputDefinition;
 use Symfony\Component\Console\Input\ArrayInput;
 use Illuminate\Database\QueryException;
 use PDOException;
@@ -21,12 +24,6 @@ class SqlEnv extends BaseEnvironment {
     protected $table;
     protected $listTable = true;
     protected $time = 0;
-
-    protected $casts = [
-        'x' => 'boolean',
-        'c' => 'string'
-    ];
-
     protected $io;
 
     public function __construct(\App\User $model)
@@ -37,7 +34,6 @@ class SqlEnv extends BaseEnvironment {
         parent::__construct($output, $input);
 
         $this->io = $this->getSymfonyStyle();
-
         $this->table = $this->table();
 
         DB::listen(function($sql) {
@@ -48,11 +44,6 @@ class SqlEnv extends BaseEnvironment {
     public function handle($command)
     {
         try {
-
-            if(preg_match('/^\\\\[a-z]+/', $command)) {
-                $this->mode($command);
-                return;
-            }
 
             if($this->connection) {
                 $result = DB::connection($this->connection)->select(DB::raw("{$command}"));
@@ -83,8 +74,47 @@ class SqlEnv extends BaseEnvironment {
         }catch(PDOException $e) {
             $this->io->error($e->getMessage());
         }
+    }
 
+    public function tab($input)
+    {
+        dump($input);
+    }
 
+    protected function register()
+    {
+        $this->addMode('\x', function() {
+            $this->listTable = !$this->listTable;
+            $this->io->newLine(2);
+
+            if($this->listTable) {
+                $this->white('> Table view mode was activated');
+            }else{
+                $this->white('> Object view mode was activated');
+            }
+        });
+
+        $this->addMode('\c', function() {
+            $args = func_get_args();
+            $connection = count($args) < 1 ? null : current(func_get_args());
+            $database = require(config_path('database.php'));
+
+            if(array_key_exists($connection, $database['connections'])) {
+                $this->connection = $connection;
+                $this->lineText = $connection;
+
+                $this->io->newLine(2);
+                $this->io->text('<white>> Database connection name has been changed to</white> <green>'.$connection.'</green>');
+            }else{
+                if(empty($connection)) {
+                    $this->connection = null;
+                    $this->lineText = '';
+                }else{
+                    $this->io->newLine(2);
+                    $this->io->error('Connection name not found');
+                }
+            }
+        });
     }
 
     protected function getHeader($data)
@@ -113,66 +143,5 @@ class SqlEnv extends BaseEnvironment {
         return $newData;
     }
 
-    protected function mode($command)
-    {
-        preg_match_all('/\s+(?:([a-z]+))/', $command, $params);
-
-        $params = array_map('trim', $params[0]);
-
-        preg_match('/^\\\\([a-zA-Z]+)/', $command, $command);
-
-        if(count($command) > 1) $command = $command[1];
-
-        $store = collect([
-            'x' => function() {
-                $this->listTable = !$this->listTable;
-                $this->io->newLine(1);
-
-                if($this->listTable) {
-                    $this->green('> Table view mode was activated');
-                }else{
-                    $this->green('> Object view mode was activated');
-                }
-            },
-            'c' => function() {
-                $args = func_get_args();
-
-                $connection = count($args) < 1 ? null : current(func_get_args());
-
-                if(in_array($connection, DB::availableDrivers())) {
-
-                    $this->connection = $connection;
-                    $this->lineText = $connection;
-
-                    $this->io->newLine(1);
-                    $this->io->text('<white>> Database connection driver has been changed to</white> <green>'.$connection.'</green>');
-                }else{
-                    if(empty($connection)) {
-                        $this->connection = null;
-                        $this->lineText = '';
-                    }else{
-                        $this->io->newLine(1);
-                        $this->io->error('Connection not found');
-                    }
-                }
-            }
-        ]);
-
-        if(! $store->has($command)) {
-            $this->io->error('Command not found');
-            return;
-        }
-
-        call_user_func_array($store->get($command), $params);
-    }
-
-    protected function inputOption()
-    {
-        return [
-            'set' => [
-
-            ]
-        ];
-    }
 
 }
