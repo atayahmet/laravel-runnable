@@ -6,6 +6,8 @@ use Runnable\BaseEnvironment;
 use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Debug\Exception\FatalErrorException;
+use Illuminate\Database\QueryException;
+use PDOException;
 
 use DB;
 use Artisan;
@@ -14,30 +16,30 @@ use stdClass;
 class LiveEnv extends BaseEnvironment {
 
     protected $name = 'live';
-    protected $description = 'Run raw sql';
-    protected $lineText = 0;
-    protected $model;
-    protected $table;
-    protected $listTable = true;
-    protected $time = 0;
+    protected $description = 'Interactive shell for Laravel Application';
+    protected $modes = [
+        'trace' => false
+    ];
+
     protected $vars = [];
+    protected $lineText = 0;
+    protected $time = 0;
     protected $io;
 
-    public function __construct(\App\User $model)
+    public function __construct()
     {
         $output = new ConsoleOutput();
-        $input = new ArrayInput([]);
+        $input  = new ArrayInput([]);
 
         parent::__construct($output, $input);
 
+        $this->lineText = 0;
+        $this->modes = collect($this->modes);
         $this->io = $this->getSymfonyStyle();
-        $this->table = $this->table();
 
         DB::listen(function($sql) {
             $this->time = $sql->time;
         });
-
-        $this->lineText = 0;
     }
 
     /**
@@ -51,6 +53,8 @@ class LiveEnv extends BaseEnvironment {
         try {
             ++$this->lineText;
 
+            $result = null;
+
             extract($this->vars, EXTR_OVERWRITE);
 
             preg_match('/^(\$[a-zA-Z0-9\-\>]+)\s*?\=\s*?(.*)\;*$/', $command, $matches);
@@ -61,15 +65,18 @@ class LiveEnv extends BaseEnvironment {
                 $this->vars[$varName[1]] = current(compact($varName[1]));
             }
 
-            elseif(preg_match('/^(\$[a-zA-Z0-9\-\>]+)\s*?$/', $command)) {
+            elseif(preg_match('/^(\$[a-zA-Z0-9\-\>\(\)\_]+)\s*?$/', $command)) {
                 eval("\$result = {$command};");
             }
 
-            else if(preg_match('/\$([a-zA-Z0-9]+)\s*?/', $command)) {
-
+            else if(preg_match('/\$([a-zA-Z0-9\-\>\(\)\_]+)\s*?/', $command)) {
                 ob_start();
-                eval($command);
+                eval("{$command};");
                 $result = ob_get_clean();
+
+                if(empty($result)) {
+                    eval("\$result = {$command};");
+                }
             }else{
                 eval("\$result = {$command};");
             }
@@ -89,9 +96,14 @@ class LiveEnv extends BaseEnvironment {
             }
             return;
 
-        }catch(\ErrorException $e) {
+        }catch(\Exception $e) {
             $this->io->newLine(2);
-            $this->io->error($e->getMessage());
+
+            if($this->modes->get('trace')) {
+                $this->io->error($e->getTraceAsString());
+            }else{
+                $this->io->error($e->getMessage());
+            }
         }
     }
 
@@ -99,4 +111,20 @@ class LiveEnv extends BaseEnvironment {
     {
         dump($input);
     }
+
+    protected function register()
+    {
+        $this->addMode('\t', function() {
+            $trace = $this->modes->get('trace', false);
+            $this->modes->offsetSet('trace', !$trace);
+            $this->io->newLine(2);
+
+            if($this->modes->get('trace')) {
+                $this->white('> Error trace has been activated');
+            }else{
+                $this->white('> Error message has been activated');
+            }
+        });
+    }
+
 }
