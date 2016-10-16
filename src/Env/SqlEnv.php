@@ -142,6 +142,4 @@ class SqlEnv extends BaseEnvironment {
         }
         return $newData;
     }
-
-
 }
