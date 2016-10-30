@@ -3,6 +3,8 @@
 namespace Runnable;
 
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Output\ConsoleOutput;
+use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Formatter\OutputFormatterInterface;
 use Symfony\Component\Console\Formatter\OutputFormatterStyle;
 use Symfony\Component\Console\Output\ConsoleOutputInterface;
@@ -20,6 +22,8 @@ class BaseEnvironment extends Command {
     protected $output;
     protected $input;
 
+    private $modes;
+
     protected $fg = [
         'red',
         'green',
@@ -30,11 +34,12 @@ class BaseEnvironment extends Command {
         'white'
     ];
 
-    public function __construct(ConsoleOutputInterface $output, InputInterface $input)
+    public function __construct()
     {
-        $this->output = $output;
-        $this->input = $input;
-        $this->symfonyStyle = new SymfonyStyle($input, $output);
+        $this->output = new ConsoleOutput();
+        $this->input = new ArrayInput([]);
+
+        $this->symfonyStyle = new SymfonyStyle($this->input, $this->output);
         $this->modes = collect([]);
 
         $this->initConfig();

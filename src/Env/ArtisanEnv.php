@@ -44,10 +44,9 @@ class ArtisanEnv extends BaseEnvironment {
      * @param  string $command Current command
      * @return mixed
      */
-    public function handle($command)
+    public function enter($command)
     {
         try {
-
             if($command == 'exit') {
                 $this->io->text('<green>Good Byeee...</green>');
                 $this->io->newLine(1);

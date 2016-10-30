@@ -41,7 +41,7 @@ class SqlEnv extends BaseEnvironment {
         });
     }
 
-    public function handle($command)
+    public function enter($command)
     {
         try {
 

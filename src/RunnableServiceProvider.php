@@ -3,6 +3,12 @@
 namespace Runnable;
 
 use Illuminate\Support\ServiceProvider;
+use Symfony\Component\Console\Output\ConsoleOutputInterface;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Output\ConsoleOutput;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Style\SymfonyStyle;
 
 class RunnableServiceProvider extends ServiceProvider
 {
@@ -23,10 +29,34 @@ class RunnableServiceProvider extends ServiceProvider
      */
     public function register()
     {
-      $this->commands(\Runnable\Runnable::class);
+        $this->commands(\Runnable\Runnable::class);
 
-      $this->app->bind('RunnableModes', 'Illuminate\Contracts\Console\Kernel');
-      $this->saveDefaultModes();
+        //$this->app->bind(\Runnable\Shell::class);
+
+        $this->app->bind('RunnableModes', 'Illuminate\Contracts\Console\Kernel');
+
+        $this->app->bind('InputInterface', function() {
+            return new ArrayInput([]);
+        });
+
+        $this->app->bind('OutputInterface', function() {
+            return new ConsoleOutput();
+        });
+
+        $this->app->tag(['InputInterface', 'OutputInterface'], 'inout');
+
+        $this->app->bind('ConsoleStyle', function ($app) {
+            $tagged = $app->tagged('inout');
+            $input  = $tagged[0];
+            $output = $tagged[1];
+            return new SymfonyStyle($input, $output);
+        });
+
+        $this->app->singleton(\Runnable\Shell::class, function ($app) {
+            return new \Runnable\Shell($app->make(\Runnable\ConsoleStyle::class));
+        });
+
+        $this->saveDefaultModes();
     }
 
     protected function saveDefaultModes()
