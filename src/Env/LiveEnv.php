@@ -83,6 +83,7 @@ class LiveEnv extends BaseEnvironment {
         if (!is_null($e = error_get_last())) {
 
             app(\Runnable\Shell::class)->run();
+
         }
     }
     /**

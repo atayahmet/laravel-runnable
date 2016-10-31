@@ -10,41 +10,78 @@ use ReflectionClass;
 
 class Shell {
 
+    /**
+     * Stty mode status
+     *
+     * @var boolean
+     */
     private static $stty;
 
+    /**
+     * Command line argument
+     *
+     * @var mixed
+     */
     protected $argument;
+
+    /**
+     * Console style class Runnable\ConsoleStyle
+     *
+     * @var object
+     */
     protected $console;
+
+    /**
+     * History storage class Illuminate\Support\Collection
+     *
+     * @var object
+     */
     protected $history = [];
+
+    /**
+     * Active environments
+     *
+     * @var array
+     */
     protected $environments = [];
 
-    protected $commands = [
-        'current' => [
-
-        ]
-    ];
+    protected $current = null;
 
     public function __construct(ConsoleStyle $console)
     {
         $this->console = $console;
-
         $this->history = collect([]);
 
         $this->bootModes();
-
     }
 
+    /**
+     * Run console session
+     *
+     * @param  mixed $argument
+     * @return void
+     */
     public function run($argument = null)
     {
+        // save environment
         if($argument) $this->setEnv($argument);
 
+        // Run
         $this->processHandler();
     }
 
+    /**
+     * Console command handler
+     *
+     * @return void
+     */
     private function processHandler()
     {
+        // Get the console stty mode
         $sttyMode = shell_exec('stty -g');
 
         try {
+            // input
             $inputStream = STDIN;
 
             if (! $this->hasSttyAvailable()) {
@@ -59,7 +96,8 @@ class Shell {
                 $this->setInputs();
                 $this->console->write("\033[K");
 
-                // Disable icanon (so we can fread each keypress) and echo (we'll do echoing here instead)
+                // Disable icanon (so we can fread each keypress) and
+                // echo (we'll do echoing here instead)
                 shell_exec('stty -icanon -echo');
 
                 $text = '<fg=red;options=bold>'."\n".$this->cursor();
@@ -224,7 +262,7 @@ class Shell {
            shell_exec(sprintf('stty %s', $sttyMode));
 
         }catch(CommandNotFoundException $e) {
-            $this->_newLine(false);
+            $this->newLine();
             $this->error($e->getMessage());
         }
     }
@@ -271,6 +309,11 @@ class Shell {
         return false;
     }
 
+    /**
+     * Check the console stty moe avaibility
+     *
+     * @return boolean
+     */
     private function hasSttyAvailable()
     {
         if (null !== self::$stty) {
@@ -280,6 +323,9 @@ class Shell {
         return self::$stty = $exitcode === 0;
     }
 
+    /**
+     * Set
+     */
     private function setInputs()
     {
         // Get the env
@@ -293,6 +339,11 @@ class Shell {
         $this->bootEnvIfExists($env, true, $defaultEnv = $firstEnv);
     }
 
+    /**
+     * Booting all available environments
+     *
+     * @return void
+     */
     protected function bootModes()
     {
         foreach(app()->make('RunnableModes')->runnable as $env) {
@@ -300,6 +351,7 @@ class Shell {
             // make the mode class
             $envIns = app($env);
 
+            // and register to container
             $envIns->register();
 
             // Uses the reflection class to  be accessable
@@ -391,26 +443,43 @@ class Shell {
         }
     }
 
-    private function setEnv($mode)
+    /**
+     * Set environment
+     *
+     * @param string
+     */
+    private function setEnv($env)
     {
-        array_set($this->commands, $this->current('mode'), $mode);
+        $this->current = $env;
     }
 
+    /**
+     * Get environment given name
+     *
+     * @param  string $name
+     * @return string
+     */
     protected function getEnv($name = null)
     {
         return array_get($this->environments, $name ?: $this->getCurrentEnvName());
     }
 
+    /**
+     * Get current environment name
+     *
+     * @return string
+     */
     protected function getCurrentEnvName()
     {
-        return array_get($this->commands, $this->current('mode'));
+        return $this->current;
     }
 
-    private function current($key)
-    {
-        return 'current.'.$key;
-    }
-
+    /**
+     * Replace command on the line
+     *
+     * @param  mixed $command
+     * @return void
+     */
     private function replaceCommand($command)
     {
         // Erase to the end of the line
@@ -423,12 +492,17 @@ class Shell {
         $this->console->write($erased.$cursor.$command);
     }
 
+    /**
+     * Generate new cursor
+     *
+     * @return string
+     */
     private function cursor()
     {
         $envName = $this->getCurrentEnvName();
         $env = $this->getEnv($envName);
         $line = $env['class']->lineText;
 
-        return "</><fg=white>(".$env['class']->name.") " . ($line ? '<fg=red;options=bold>'.$line.' ' : ''). "<fg=white>➜ </><fg=white>";
+        return "</><fg=white>(".$env['class']->name.") " . ($line ? '<fg=red;options=bold>'.$line.' ' : '') . "<fg=white>➜ </><fg=white>";
     }
 }
