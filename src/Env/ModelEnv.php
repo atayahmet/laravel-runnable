@@ -92,4 +92,15 @@ class ModelEnv extends BaseEnvironment {
             ]
         ];
     }
+
+    /**
+     * Replace class path from shortcut pattern
+     *
+     * @param  string $path Class path shortcut
+     * @return string
+     */
+    private function replacePath($path)
+    {
+        return str_replace(['.'], ['\\'], $path);
+    }
 }

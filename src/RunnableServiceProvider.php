@@ -31,8 +31,6 @@ class RunnableServiceProvider extends ServiceProvider
     {
         $this->commands(\Runnable\Runnable::class);
 
-        //$this->app->bind(\Runnable\Shell::class);
-
         $this->app->bind('RunnableModes', 'Illuminate\Contracts\Console\Kernel');
 
         $this->app->bind('InputInterface', function() {
@@ -77,8 +75,7 @@ class RunnableServiceProvider extends ServiceProvider
             \Runnable\Env\ArtisanEnv::class,
             \Runnable\Env\LiveEnv::class,
             \Runnable\Env\ModelEnv::class,
-            \Runnable\Env\SqlEnv::class,
-            \Runnable\Env\RawEnv::class
+            \Runnable\Env\SqlEnv::class
         ];
     }
 }

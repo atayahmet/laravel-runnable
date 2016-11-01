@@ -48,28 +48,8 @@ class Runnable extends Command
      */
     public function handle()
     {
-
         $argument = $this->argument('env');
-        dd(app(\Runnable\Shell::class)->run($argument));
-        // Save existing tty configuration
 
-        // Make lots of drastic changes to the tty
-
-        // Reset the tty back to the original configuration
-        //system("stty '" . $term . "'");
-
-
+        app(\Runnable\Shell::class)->run($argument);
     }
-
-    /**
-     * Replace class path from shortcut pattern
-     *
-     * @param  string $path Class path shortcut
-     * @return string
-     */
-    private function replacePath($path)
-    {
-        return str_replace(['.'], ['\\'], $path);
-    }
-
 }

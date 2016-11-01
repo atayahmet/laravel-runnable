@@ -87,7 +87,7 @@ class Shell {
             if (! $this->hasSttyAvailable()) {
 
                 $this->newLine(1);
-                $this->error('Console stty command not available');
+                $this->console->error('Console stty command not available');
             }else {
                 $command = '';
                 $commandLength = 0;
@@ -263,7 +263,7 @@ class Shell {
 
         }catch(CommandNotFoundException $e) {
             $this->newLine();
-            $this->error($e->getMessage());
+            $this->console->error($e->getMessage());
         }
     }
 
@@ -299,7 +299,7 @@ class Shell {
                     }
                 }
                 catch(RuntimeException $e) {
-                    $this->error($e->getMessage());
+                    $this->console->error($e->getMessage());
                 }
             }
 
@@ -432,7 +432,7 @@ class Shell {
                     throw new EnvNotFoundException($message);
                 }
 
-                $this->error($message);
+                $this->console->error($message);
             }
 
             // if mode parameter is not valid and

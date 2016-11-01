@@ -14,7 +14,7 @@ use stdClass;
 class ArtisanEnv extends BaseEnvironment {
 
     public $name = 'artisan';
-    public $description = 'Run raw sql';
+    public $description = 'Run more easy of artisan commands';
     public $lineText = '';
 
     protected $model;
